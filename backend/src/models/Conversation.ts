@@ -11,6 +11,9 @@ const conversationSchema = new mongoose.Schema({
   userId: { type: String, required: true },
   messages: [messageSchema],
   updatedAt: { type: Date, default: Date.now },
-});
+}, { collection: "astro_conversations" });
 
-export const Conversation = mongoose.model("Conversation", conversationSchema);
+const Conversation = mongoose.model("Conversation", conversationSchema);
+
+export { Conversation };
+export default Conversation;
