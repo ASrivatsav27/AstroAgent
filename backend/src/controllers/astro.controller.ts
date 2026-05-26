@@ -82,6 +82,7 @@ export async function chatController(req: Request, res: Response) {
       birthDetails: resolvedBirthDetails,
       currentTool: null,
       toolOutput: null,
+      chartData: null,
       intent: null,
       error: null,
       userId: userId ?? null,
@@ -101,11 +102,20 @@ export async function chatController(req: Request, res: Response) {
     conversation.updatedAt = new Date();
     await conversation.save();
 
+    if (result.chartData) {
+      await User.findOneAndUpdate(
+        { userId },
+        { chartData: result.chartData },
+        { returnDocument: "after" }
+      );
+    }
+
     const lastMessage = result.messages[result.messages.length - 1];
 
     res.json({
       reply: lastMessage?.content,
       intent: result.intent,
+      chartData: result.chartData ?? null,
       messages: result.messages,
     });
   } catch (err: any) {
@@ -143,7 +153,10 @@ export async function getUser(req: Request, res: Response) {
     }
     const user = await User.findOne({ userId });
 
-    res.json({ birthDetails: user?.birthDetails ?? null });
+    res.json({
+      birthDetails: user?.birthDetails ?? null,
+      chartData: user?.chartData ?? null,
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

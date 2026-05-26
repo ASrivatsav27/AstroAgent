@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import config from "../config/config.js";
-import type { AgentState } from "./state.js";
+import type { AgentState, ChartData } from "./state.js";
 import { routerNode } from "./nodes/routerNode.js";
 import { reasonNode } from "./nodes/reasonNode.js";
 import { computeBirthChart } from "./tools/birthChart.js";
@@ -22,6 +22,7 @@ async function toolNode(state: AgentState): Promise<Partial<AgentState>> {
 
   try {
     let toolOutput: any = null;
+    let chartData: ChartData | null = null;
 
 if (currentTool === "compute_birth_chart") {
   console.log("Geocoding...");
@@ -30,6 +31,7 @@ if (currentTool === "compute_birth_chart") {
   const enriched = { ...birthDetails, ...geo };
   console.log("Computing chart...");
   toolOutput = await computeBirthChart(enriched);
+  chartData = toolOutput as ChartData;
   console.log("Chart:", toolOutput);
 }
 
@@ -44,9 +46,9 @@ if (currentTool === "compute_birth_chart") {
       toolOutput = knowledgeLookup(lastMessage?.content ?? "");
     }
 
-    return { toolOutput, currentTool: null };
+    return { toolOutput, chartData, currentTool: null };
   } catch (err: any) {
-    return { error: err.message, toolOutput: null };
+    return { error: err.message, toolOutput: null, chartData: null };
   }
 }
 async function llmWithRetry(payload: any, retries = 3): Promise<any> {
@@ -64,7 +66,7 @@ async function llmWithRetry(payload: any, retries = 3): Promise<any> {
   }
 }
 async function llmNode(state: AgentState): Promise<Partial<AgentState>> {
-  const { messages, toolOutput, birthDetails, error } = state;
+  const { messages, toolOutput, birthDetails, error, chartData } = state;
 
   const systemPrompt = `You are Astra, a calm and insightful astrology companion.
 
@@ -108,6 +110,7 @@ Respond conversationally. Ground every interpretation in the tool data above.`;
       },
     ],
     toolOutput: null,
+    chartData: chartData ?? null,
     error: null,
   };
 }

@@ -10,6 +10,19 @@ const userSchema = new mongoose.Schema({
     lng: Number,
     timezone: String,
   },
+  chartData: {
+    planets: [
+      {
+        planet: String,
+        sign: String,
+        degree: Number,
+        house: Number,
+      },
+    ],
+    ascendant: String,
+    houses: [String],
+    rawData: mongoose.Schema.Types.Mixed,
+  },
   createdAt: { type: Date, default: Date.now },
 }, { collection: "astro_users" });
 
