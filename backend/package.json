@@ -5,7 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch server.ts"
+    "dev": "tsx watch server.ts",
+    "eval": "tsx scripts/run_eval.ts",
+    "eval:verbose": "tsx scripts/run_eval.ts --verbose"
   },
   "keywords": [],
   "author": "",

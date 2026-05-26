@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { sendMessage as sendMessageApi } from "../services/api";
+import { useEffect, useRef } from "react";
+import { sendMessageStream } from "../services/api";
 import { useAstro } from "../context/AstroContext";
 
 export function useChat() {
   const {
     userId,
+    birthDetails,
     messages,
     setMessages,
     setChartData,
@@ -13,23 +14,32 @@ export function useChat() {
     error,
     setError,
   } = useAstro();
-  const [isTyping, setIsTyping] = useState(false);
-  const typingIndexRef = useRef<number | null>(null);
-  const intervalRef = useRef<number | null>(null);
+
+  const abortControllerRef = useRef<AbortController | null>(null);
+  // Track the index of the currently-streaming assistant message
+  const streamingIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
-      if (intervalRef.current) {
-        window.clearInterval(intervalRef.current);
-      }
+      abortControllerRef.current?.abort();
     };
   }, []);
 
+  const stopGeneration = () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    streamingIndexRef.current = null;
+    setIsLoading(false);
+  };
+
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || !userId) {
-      return;
-    }
+    if (!trimmed || !userId) return;
+
+    // Abort any in-flight request
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     const userMessage = {
       role: "user" as const,
@@ -42,60 +52,84 @@ export function useChat() {
     setError(null);
 
     try {
-      const response = await sendMessageApi(userId, trimmed);
-      const reply = response.reply ?? "";
+      await sendMessageStream(
+        userId,
+        trimmed,
+        birthDetails,
+        // onToken — append each token directly into the streaming message, creating it on the first token
+        (token) => {
+          setMessages((prev) => {
+            const next = [...prev];
+            const lastUserIdx = next.map((m) => m.role).lastIndexOf("user");
+            
+            // Search for assistant message strictly in the current turn (after the last user message)
+            let idx = -1;
+            for (let i = next.length - 1; i > lastUserIdx; i--) {
+              if (next[i]?.role === "assistant") {
+                idx = i;
+                break;
+              }
+            }
 
-      if (response.chartData) {
-        setChartData(response.chartData);
-      }
+            if (idx === -1) {
+              const assistantPlaceholder = {
+                role: "assistant" as const,
+                content: token,
+                timestamp: new Date().toISOString(),
+              };
+              return [...prev, assistantPlaceholder];
+            }
+            next[idx] = { ...next[idx]!, content: next[idx]!.content + token };
+            return next;
+          });
+        },
+        // onToolActivity — insert a visible tool-activity message
+        (toolName) => {
+          const toolMsg = {
+            role: "tool" as const,
+            content: toolName,
+            timestamp: new Date().toISOString(),
+          };
+          setMessages((prev) => {
+            const lastUserIdx = prev.map((m) => m.role).lastIndexOf("user");
+            
+            // Search for assistant message strictly in the current turn (after the last user message)
+            let idx = -1;
+            for (let i = prev.length - 1; i > lastUserIdx; i--) {
+              if (prev[i]?.role === "assistant") {
+                idx = i;
+                break;
+              }
+            }
 
-      const assistantMessage = {
-        role: "assistant" as const,
-        content: "",
-        timestamp: new Date().toISOString(),
-      };
-
-      setMessages((prev) => {
-        const next = [...prev, assistantMessage];
-        typingIndexRef.current = next.length - 1;
-        return next;
-      });
-      setIsTyping(true);
-
-      let index = 0;
-      let current = "";
-
-      intervalRef.current = window.setInterval(() => {
-        if (index >= reply.length) {
-          if (intervalRef.current) {
-            window.clearInterval(intervalRef.current);
+            if (idx === -1) return [...prev, toolMsg];
+            const next = [...prev];
+            next.splice(idx, 0, toolMsg);
+            return next;
+          });
+        },
+        // onDone — update chart data and clear loading state
+        (payload) => {
+          if (payload.chartData) {
+            setChartData(payload.chartData);
           }
-          intervalRef.current = null;
-          setIsTyping(false);
           setIsLoading(false);
-          return;
-        }
-
-        current += reply.charAt(index);
-        index += 1;
-
-        setMessages((prev) => {
-          const next = [...prev];
-          const targetIndex = typingIndexRef.current;
-          if (targetIndex === null || !next[targetIndex]) {
-            return prev;
-          }
-          next[targetIndex] = { ...next[targetIndex], content: current };
-          return next;
-        });
-      }, 18);
+        },
+        controller.signal
+      );
     } catch (err: unknown) {
+      // AbortError is expected when user stops generation
+      if (err instanceof Error && (err.name === "AbortError" || err.name === "CanceledError")) {
+        setIsLoading(false);
+        return;
+      }
       const message = err instanceof Error ? err.message : "Unable to send message";
       setError(message);
       setIsLoading(false);
-      setIsTyping(false);
     }
   };
 
-  return { sendMessage, isLoading, isTyping, error };
+  const isTyping = isLoading && messages[messages.length - 1]?.role === "assistant";
+
+  return { sendMessage, stopGeneration, isLoading, isTyping, error, messages };
 }

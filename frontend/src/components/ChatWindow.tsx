@@ -28,7 +28,7 @@ const detectPlanets = (text: string): PlanetKey[] => {
 
 export default function ChatWindow() {
   const { messages, chartData } = useAstro();
-  const { sendMessage, isLoading, isTyping, error } = useChat();
+  const { sendMessage, isLoading, isTyping, error, stopGeneration } = useChat();
   const [input, setInput] = useState("");
   const [activePlanets, setActivePlanets] = useState<PlanetKey[]>([]);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
@@ -36,7 +36,17 @@ export default function ChatWindow() {
   const lastHighlightRef = useRef<string>("");
   const clearTimerRef = useRef<number | null>(null);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length]);
+  // Smooth scroll when a new message bubble is added
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
+
+  // Instant scroll on every char update while typing so it tracks the output
+  useEffect(() => {
+    if (isTyping) {
+      endRef.current?.scrollIntoView({ behavior: "instant" });
+    }
+  }, [messages, isTyping]);
 
   /* Detect planet mentions */
   useEffect(() => {
@@ -146,16 +156,16 @@ export default function ChatWindow() {
   );
 
   return (
-    <div className="flex min-h-screen" style={{ background: "var(--cream)" }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--cream)" }}>
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col" style={{
-        width: "290px", borderRight: "1px solid var(--border)", background: "var(--cream-light)", flexShrink: 0,
+        width: "290px", borderRight: "1px solid var(--border)", background: "var(--cream-light)", flexShrink: 0, height: "100vh", overflow: "hidden",
       }}>
         {sidebarContent}
       </aside>
 
       {/* Chat panel */}
-      <div className="flex-1 flex flex-col min-h-screen" style={{ background: "var(--cream)" }}>
+      <div className="flex-1 flex flex-col h-screen overflow-hidden" style={{ background: "var(--cream)" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-5" style={{
           height: "56px", borderBottom: "1px solid var(--border)", background: "var(--cream-light)", flexShrink: 0,
@@ -187,7 +197,8 @@ export default function ChatWindow() {
             )}
             {messages.map((msg, idx) => (
               <MessageBubble key={`${msg.timestamp}-${idx}`} message={msg}
-                isLatestAssistant={msg.role === "assistant" && idx === lastAssistantIndex} />
+                isLatestAssistant={msg.role === "assistant" && idx === lastAssistantIndex}
+                showCursor={isTyping && msg.role === "assistant" && idx === lastAssistantIndex} />
             ))}
             {isLoading && !isTyping && <LoadingDots />}
             {error && (
@@ -199,28 +210,60 @@ export default function ChatWindow() {
           </div>
         </main>
 
-        {/* Input */}
-        <div className="flex items-center gap-3 px-5" style={{
-          height: "64px", borderTop: "1px solid var(--border)", background: "var(--cream-light)", flexShrink: 0,
-        }}>
-          <input type="text" value={input} onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
-            placeholder="Ask Astra..." disabled={isLoading}
-            className="flex-1"
-            style={{
-              background: "var(--white)", border: "1.5px solid var(--border)", borderRadius: "12px",
-              padding: "10px 16px", color: "var(--text)", fontSize: "14px",
-              fontFamily: "'DM Sans', sans-serif", transition: "border-color 200ms",
-            }}
-          />
-          <button type="button" onClick={handleSend} disabled={isLoading || !input.trim()}
-            className="btn-gradient"
-            style={{
-              width: "40px", height: "40px", borderRadius: "10px", fontSize: "18px",
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            }}>
-            ↑
-          </button>
+        {/* Stop / Input bar */}
+        <div style={{ background: "var(--cream-light)", borderTop: "1px solid var(--border)", flexShrink: 0 }}>
+          {/* Stop generating button */}
+          {isLoading && (
+            <div className="flex justify-center" style={{ paddingTop: "10px" }}>
+              <button
+                onClick={stopGeneration}
+                style={{
+                  display: "flex", alignItems: "center", gap: "7px",
+                  background: "var(--card)", border: "1.5px solid var(--border)",
+                  borderRadius: "20px", padding: "7px 18px",
+                  fontSize: "13px", color: "var(--text-secondary)",
+                  cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+                  fontWeight: 500, transition: "border-color 150ms, background 150ms",
+                  boxShadow: "var(--card-shadow)",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = "var(--purple)";
+                  e.currentTarget.style.color = "var(--purple)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = "var(--border)";
+                  e.currentTarget.style.color = "var(--text-secondary)";
+                }}
+              >
+                <span style={{
+                  width: "10px", height: "10px", borderRadius: "2px",
+                  background: "currentColor", display: "inline-block", flexShrink: 0,
+                }} />
+                Stop generating
+              </button>
+            </div>
+          )}
+          {/* Input row */}
+          <div className="flex items-center gap-3 px-5" style={{ height: "64px" }}>
+            <input type="text" value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
+              placeholder="Ask Astra..." disabled={isLoading}
+              className="flex-1"
+              style={{
+                background: "var(--white)", border: "1.5px solid var(--border)", borderRadius: "12px",
+                padding: "10px 16px", color: "var(--text)", fontSize: "14px",
+                fontFamily: "'DM Sans', sans-serif", transition: "border-color 200ms",
+              }}
+            />
+            <button type="button" onClick={handleSend} disabled={isLoading || !input.trim()}
+              className="btn-gradient"
+              style={{
+                width: "40px", height: "40px", borderRadius: "10px", fontSize: "18px",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+              ↑
+            </button>
+          </div>
         </div>
       </div>
 

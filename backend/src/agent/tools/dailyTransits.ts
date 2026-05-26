@@ -38,14 +38,15 @@ function checkAspect(transitDeg: number, natalDeg: number): string | null {
 
 export async function getDailyTransits(
   birthDetails: BirthDetails,
-  date: string = new Date().toISOString().split("T")[0] ?? "2026-01-01"
+  date: string = new Date().toISOString().split("T")[0] ?? "2026-01-01",
+  existingChart?: import("./birthChart.js").BirthChartResult | null
 ): Promise<TransitResult> {
   const { Ephemeris } = await import("ephemeris");
 
   const [year, month, day] = date.split("-").map(Number);
 
-  // Natal chart FIRST
-  const natal = await computeBirthChart(birthDetails);
+  // Reuse existing natal chart if available, otherwise compute it
+  const natal = existingChart ?? await computeBirthChart(birthDetails);
 
   // Then today's transits
   const todayResult = Ephemeris.getAllPlanets(

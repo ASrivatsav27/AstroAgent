@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useMemo } from "react";
 import type { Message } from "../context/AstroContext";
 
 type MessageBubbleProps = {
   message: Message;
   isLatestAssistant?: boolean;
+  showCursor?: boolean;
 };
 
 /* ── Planet symbol map ── */
@@ -28,8 +29,8 @@ const SIGN_SYMBOLS: Record<string, string> = {
 };
 
 /* ── Detect if a line is part of a markdown table ── */
-const isTableRow = (line: string) => line.trim().startsWith("|") && line.trim().endsWith("|");
-const isSeparatorRow = (line: string) => /^\|[\s\-:|]+\|$/.test(line.trim());
+const isTableRow = (line: string) => line.trim().startsWith("|");
+const isSeparatorRow = (line: string) => /^\|[\s\-:|]+$/.test(line.trim());
 
 /* ── Render a markdown table block ── */
 function renderTable(tableLines: string[]): React.ReactNode {
@@ -37,11 +38,26 @@ function renderTable(tableLines: string[]): React.ReactNode {
   const dataRows = tableLines.filter(l => !isSeparatorRow(l));
   if (dataRows.length === 0) return null;
 
-  const parseRow = (line: string) =>
-    line.split("|").filter((_, i, arr) => i > 0 && i < arr.length - 1).map(c => c.trim());
+  const parseRow = (line: string) => {
+    const rawParts = line.split("|");
+    // The first element is always empty because the line starts with '|'
+    const parts = rawParts.slice(1);
+    // If the last element is empty (because the line ends with '|'), drop it
+    if (parts.length > 0 && parts[parts.length - 1].trim() === "") {
+      parts.pop();
+    }
+    return parts.map(c => c.trim());
+  };
 
   const headerCells = parseRow(dataRows[0]);
-  const bodyRows = dataRows.slice(1).map(parseRow);
+  const bodyRows = dataRows.slice(1).map(line => {
+    const cells = parseRow(line);
+    // Pad cells to match header length for stable streaming alignment
+    while (cells.length < headerCells.length) {
+      cells.push("");
+    }
+    return cells;
+  });
 
   return (
     <div style={{ overflowX: "auto", margin: "8px 0" }}>
@@ -239,38 +255,49 @@ function injectSymbols(text: string, keyPrefix: string): React.ReactNode[] {
 }
 
 /* ── Component ── */
-export default function MessageBubble({ message, isLatestAssistant }: MessageBubbleProps) {
+export default function MessageBubble({ message, isLatestAssistant, showCursor }: MessageBubbleProps) {
   const isUser = message.role === "user";
-  const [displayed, setDisplayed] = useState(isUser || !isLatestAssistant ? message.content : "");
-  const [isTyping, setIsTyping] = useState(!isUser && isLatestAssistant && displayed.length < message.content.length);
-  const intervalRef = useRef<number | null>(null);
+  const isTool = message.role === "tool";
 
-  useEffect(() => {
-    if (isUser || !isLatestAssistant) {
-      setDisplayed(message.content);
-      setIsTyping(false);
-      return;
-    }
-    if (displayed.length >= message.content.length) {
-      setIsTyping(false);
-      return;
-    }
-    setIsTyping(true);
-    let idx = displayed.length;
-    intervalRef.current = window.setInterval(() => {
-      if (idx >= message.content.length) {
-        if (intervalRef.current) window.clearInterval(intervalRef.current);
-        intervalRef.current = null;
-        setIsTyping(false);
-        return;
-      }
-      idx += 1;
-      setDisplayed(message.content.slice(0, idx));
-    }, 12);
-    return () => { if (intervalRef.current) window.clearInterval(intervalRef.current); };
-  }, [message.content, isUser, isLatestAssistant]);
+  const renderedContent = useMemo(() => renderMarkdown(message.content), [message.content]);
 
-  const renderedContent = useMemo(() => renderMarkdown(displayed), [displayed]);
+  // ── Tool activity card ──
+  if (isTool) {
+    const TOOL_LABELS: Record<string, string> = {
+      compute_birth_chart: "Computing birth chart…",
+      get_daily_transits: "Fetching today's transits…",
+      knowledge_lookup: "Looking up astrology knowledge…",
+    };
+    const label = TOOL_LABELS[message.content] ?? `Running ${message.content}…`;
+
+    return (
+      <div className="flex justify-start">
+        <div style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "10px",
+          padding: "8px 14px",
+          borderRadius: "10px",
+          background: "rgba(139, 126, 184, 0.1)",
+          border: "1px solid var(--purple-border)",
+          fontSize: "12px",
+          color: "var(--purple)",
+          fontFamily: "'Space Mono', monospace",
+          letterSpacing: "0.04em",
+        }}>
+          <span style={{
+            width: "8px",
+            height: "8px",
+            borderRadius: "50%",
+            background: "var(--purple)",
+            display: "inline-block",
+            animation: "pulse 1.2s ease-in-out infinite",
+          }} />
+          ⚙ {label}
+        </div>
+      </div>
+    );
+  }
 
   if (isUser) {
     return (
@@ -311,9 +338,10 @@ export default function MessageBubble({ message, isLatestAssistant }: MessageBub
           lineHeight: "1.75",
         }}>
           {renderedContent}
-          {isTyping && <span className="typing-cursor">|</span>}
+          {showCursor && <span className="typing-cursor">|</span>}
         </div>
       </div>
     </div>
   );
 }
+

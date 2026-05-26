@@ -1,4 +1,4 @@
-import {
+import React, {
   createContext,
   useContext,
   useEffect,
@@ -44,7 +44,7 @@ type AstroContextValue = {
   chartData: ChartData | null;
   setChartData: (data: ChartData | null) => void;
   messages: Message[];
-  setMessages: (messages: Message[]) => void;
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   isLoading: boolean;
   setIsLoading: (value: boolean) => void;
   error: string | null;

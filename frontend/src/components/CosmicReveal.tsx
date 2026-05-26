@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAstro, type ChartData } from "../context/AstroContext";
-import { sendMessage } from "../services/api";
+import { computeBirthChart } from "../services/api";
 
 const PLANET_META: Record<string, { symbol: string; color: string }> = {
   sun:     { symbol: "☉", color: "#D4A021" },
@@ -30,25 +30,31 @@ const ELEMENT_COLORS: Record<string, string> = {
 type CosmicRevealProps = { onComplete: () => void };
 
 export default function CosmicReveal({ onComplete }: CosmicRevealProps) {
-  const { userId, birthDetails, chartData, setChartData } = useAstro();
+  const { birthDetails, chartData, setChartData } = useAstro();
   const navigate = useNavigate();
   const [localChart, setLocalChart] = useState<ChartData | null>(chartData);
   const [ready, setReady] = useState(!!chartData);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
     if (chartData) { setLocalChart(chartData); setReady(true); return; }
+    if (!birthDetails) { setReady(true); return; }
     let cancelled = false;
     (async () => {
       try {
-        const res = await sendMessage(userId, "compute my birth chart");
+        const chart = await computeBirthChart(birthDetails);
         if (cancelled) return;
-        if (res.chartData) { setChartData(res.chartData); setLocalChart(res.chartData); }
+        if (chart) { setChartData(chart); setLocalChart(chart); }
         setReady(true);
-      } catch { if (!cancelled) setReady(true); }
+      } catch (err: any) {
+        if (!cancelled) {
+          setFetchError(err?.message ?? "Failed to compute birth chart");
+          setReady(true);
+        }
+      }
     })();
     return () => { cancelled = true; };
-  }, [userId, chartData, setChartData]);
+  }, [birthDetails, chartData, setChartData]);
 
   const planets = localChart?.planets ?? [];
   const ascendant = localChart?.ascendant ?? "";
@@ -82,6 +88,22 @@ export default function CosmicReveal({ onComplete }: CosmicRevealProps) {
       </div>
     );
   }
+
+  if (fetchError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center constellation-bg" style={{ background: "var(--cream)" }}>
+        <div className="flex flex-col items-center gap-4 text-center px-5" style={{ maxWidth: "400px" }}>
+          <span style={{ fontSize: "32px", color: "var(--gold)" }}>✦</span>
+          <p className="font-serif" style={{ fontSize: "18px", color: "var(--text)" }}>Something went wrong</p>
+          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>{fetchError}</p>
+          <button onClick={handleEnter} className="btn-gradient" style={{ padding: "12px 28px", borderRadius: "10px", fontSize: "14px" }}>
+            Continue to Chat Anyway →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center px-5 py-12 constellation-bg fade-in-mount" style={{ background: "var(--cream)" }}>
