@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "type":"module",
+  "type": "module",
   "scripts": {
-    "dev":"tsx watch server.ts"
+    "dev": "tsx watch server.ts"
   },
   "keywords": [],
   "author": "",
@@ -15,5 +15,9 @@
     "express": "^5.2.1",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "mongoose": "^9.6.2"
   }
 }
