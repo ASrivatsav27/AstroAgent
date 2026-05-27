@@ -19,25 +19,32 @@ const ZODIAC_DECORATIONS = [
 ];
 
 export default function BirthDetailsForm() {
-  const { userId, setBirthDetails, setError } = useAstro();
+  const { userId, setBirthDetails, setError, error } = useAstro();
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [place, setPlace] = useState("");
   const [errors, setErrors] = useState<{ date?: string; time?: string; place?: string }>({});
+  const [touched, setTouched] = useState<{ date?: boolean; time?: boolean; place?: boolean }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const validate = () => {
+  const buildErrors = (nextDate: string, nextTime: string, nextPlace: string) => {
     const nextErrors: typeof errors = {};
-    if (!date) nextErrors.date = "Date of birth is required";
-    if (!time) nextErrors.time = "Time of birth is required";
-    if (!place.trim()) nextErrors.place = "Place of birth is required";
+    if (!nextDate) nextErrors.date = "Date of birth is required";
+    if (!nextTime) nextErrors.time = "Time of birth is required";
+    if (!nextPlace.trim()) nextErrors.place = "Place of birth is required";
+    return nextErrors;
+  };
+
+  const validate = () => {
+    const nextErrors = buildErrors(date, time, place);
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setTouched({ date: true, time: true, place: true });
     if (!validate() || !userId) return;
 
     setIsSubmitting(true);
@@ -115,25 +122,96 @@ export default function BirthDetailsForm() {
               <label style={{ fontSize: "13px", color: "var(--text-secondary)", fontWeight: 500, marginBottom: "6px", display: "block" }}>
                 Date of Birth
               </label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} required style={inputStyle} />
-              {errors.date && <p className="mt-1" style={{ fontSize: "12px", color: "var(--error)" }}>{errors.date}</p>}
+              <input
+                type="date"
+                value={date}
+                onChange={e => {
+                  const next = e.target.value;
+                  setDate(next);
+                  if (touched.date) setErrors(buildErrors(next, time, place));
+                }}
+                onBlur={() => {
+                  setTouched(prev => ({ ...prev, date: true }));
+                  setErrors(buildErrors(date, time, place));
+                }}
+                aria-invalid={Boolean(touched.date && errors.date)}
+                aria-describedby={errors.date ? "birth-date-error" : undefined}
+                style={inputStyle}
+              />
+              {touched.date && errors.date && (
+                <p id="birth-date-error" className="mt-1" style={{ fontSize: "12px", color: "var(--error)" }}>
+                  {errors.date}
+                </p>
+              )}
             </div>
 
             <div>
               <label style={{ fontSize: "13px", color: "var(--text-secondary)", fontWeight: 500, marginBottom: "6px", display: "block" }}>
                 Birth Time
               </label>
-              <input type="time" value={time} onChange={e => setTime(e.target.value)} required style={inputStyle} />
-              {errors.time && <p className="mt-1" style={{ fontSize: "12px", color: "var(--error)" }}>{errors.time}</p>}
+              <input
+                type="time"
+                value={time}
+                onChange={e => {
+                  const next = e.target.value;
+                  setTime(next);
+                  if (touched.time) setErrors(buildErrors(date, next, place));
+                }}
+                onBlur={() => {
+                  setTouched(prev => ({ ...prev, time: true }));
+                  setErrors(buildErrors(date, time, place));
+                }}
+                aria-invalid={Boolean(touched.time && errors.time)}
+                aria-describedby={errors.time ? "birth-time-error" : undefined}
+                style={inputStyle}
+              />
+              {touched.time && errors.time && (
+                <p id="birth-time-error" className="mt-1" style={{ fontSize: "12px", color: "var(--error)" }}>
+                  {errors.time}
+                </p>
+              )}
             </div>
 
             <div>
               <label style={{ fontSize: "13px", color: "var(--text-secondary)", fontWeight: 500, marginBottom: "6px", display: "block" }}>
                 Birth Location
               </label>
-              <input type="text" value={place} onChange={e => setPlace(e.target.value)} placeholder="City, Country" required style={inputStyle} />
-              {errors.place && <p className="mt-1" style={{ fontSize: "12px", color: "var(--error)" }}>{errors.place}</p>}
+              <input
+                type="text"
+                value={place}
+                onChange={e => {
+                  const next = e.target.value;
+                  setPlace(next);
+                  if (touched.place) setErrors(buildErrors(date, time, next));
+                }}
+                onBlur={() => {
+                  setTouched(prev => ({ ...prev, place: true }));
+                  setErrors(buildErrors(date, time, place));
+                }}
+                placeholder="City, Country"
+                aria-invalid={Boolean(touched.place && errors.place)}
+                aria-describedby={errors.place ? "birth-place-error" : undefined}
+                style={inputStyle}
+              />
+              {touched.place && errors.place && (
+                <p id="birth-place-error" className="mt-1" style={{ fontSize: "12px", color: "var(--error)" }}>
+                  {errors.place}
+                </p>
+              )}
             </div>
+
+            {error && (
+              <div style={{
+                background: "var(--cream-light)",
+                border: "1px solid var(--error)",
+                borderRadius: "12px",
+                padding: "10px 12px",
+                fontSize: "12px",
+                color: "var(--error)",
+              }}>
+                {error}
+              </div>
+            )}
 
             <button type="submit" disabled={isSubmitting} className="btn-gradient w-full" style={{ height: "50px", fontSize: "15px", marginTop: "4px" }}>
               {isSubmitting ? "Computing..." : "Generate Birth Chart"}

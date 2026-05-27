@@ -31,6 +31,7 @@ export interface ChartData {
 export interface AgentState {
     messages: Message[]
     birthDetails: BirthDetails | null
+    resolvedLocation: BirthDetails | null
     currentTool: string | null
     toolOutput: any | null
     chartData: ChartData | null
@@ -42,6 +43,7 @@ export interface AgentState {
 export const initialState: AgentState = {
     messages: [],
     birthDetails: null,
+    resolvedLocation: null,
     currentTool: null,
     toolOutput: null,
     chartData: null,

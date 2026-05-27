@@ -104,12 +104,14 @@ The React frontend uses `fetch` + `ReadableStream` to consume tokens and appends
 
 ```bash
 cd backend
-npm run eval           # run all 10 golden-set cases (exit 0 = all pass)
+npm run eval           # run all 25 golden-set cases (exit 0 = all pass)
 npm run eval:verbose   # same, with full LLM replies printed
 npm run eval -- --id TC05   # run a single case
 ```
 
-- Golden set: [`evals/golden_set_v1.jsonl`](./backend/evals/golden_set_v1.jsonl) — versioned, 10 cases covering greetings, chart requests, transits, off-topic guards, and free-form astrology.
+- Golden set: [`evals/golden_set_v1.jsonl`](./backend/evals/golden_set_v1.jsonl) — versioned, 25 cases covering greetings, chart requests, transits, off-topic guards, free-form astrology, **failure modes** (impossible dates, prompt injection, medical/financial/legal guardrails, adversarial gibberish, empty messages).
+- **Metrics per EV04**: latency (p50, p95), tool-call count, failure rate — printed as a scorecard table.
+- **History tracking per EV06**: each run appends to `evals/results/history.md` for regression visibility.
 - Results are saved to `evals/results/run_eval_<timestamp>.json`.
 
 ---

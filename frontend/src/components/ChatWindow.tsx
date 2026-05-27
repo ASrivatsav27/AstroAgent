@@ -32,19 +32,25 @@ export default function ChatWindow() {
   const [input, setInput] = useState("");
   const [activePlanets, setActivePlanets] = useState<PlanetKey[]>([]);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-  const endRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const lastHighlightRef = useRef<string>("");
   const clearTimerRef = useRef<number | null>(null);
 
   // Smooth scroll when a new message bubble is added
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: "smooth"
+      });
+    }
   }, [messages.length]);
 
   // Instant scroll on every char update while typing so it tracks the output
   useEffect(() => {
-    if (isTyping) {
-      endRef.current?.scrollIntoView({ behavior: "instant" });
+    if (isTyping && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, [messages, isTyping]);
 
@@ -83,6 +89,13 @@ export default function ChatWindow() {
   };
 
   const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+  const TOOL_OPTIONS = [
+    { tool: "compute_birth_chart", label: "Compute birth chart", prompt: "Please compute my birth chart and summarize the key placements." },
+    { tool: "get_daily_transits", label: "Daily transits", prompt: "What are my daily transits and how do they affect me today?" },
+    { tool: "geocode_place", label: "Geocode place", prompt: "Can you verify the coordinates and timezone for my birth place?" },
+    { tool: "knowledge_lookup", label: "Astrology reference", prompt: "Look up guidance on this placement and interpret it." },
+  ];
 
   /* ─── Sidebar content ─── */
   const sidebarContent = (
@@ -156,7 +169,7 @@ export default function ChatWindow() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--cream)" }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--cream)", height: "100vh", overflow: "hidden", width: "100vw" }}>
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col" style={{
         width: "290px", borderRight: "1px solid var(--border)", background: "var(--cream-light)", flexShrink: 0, height: "100vh", overflow: "hidden",
@@ -165,7 +178,7 @@ export default function ChatWindow() {
       </aside>
 
       {/* Chat panel */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden" style={{ background: "var(--cream)" }}>
+      <div className="flex-1 flex flex-col h-screen overflow-hidden" style={{ background: "var(--cream)", height: "100%", overflow: "hidden" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-5" style={{
           height: "56px", borderBottom: "1px solid var(--border)", background: "var(--cream-light)", flexShrink: 0,
@@ -185,7 +198,7 @@ export default function ChatWindow() {
         </div>
 
         {/* Messages */}
-        <main className="flex-1 overflow-y-auto px-6 py-6">
+        <main ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6 py-6">
           <div className="flex flex-col gap-5 max-w-3xl mx-auto">
             {messages.length === 0 && (
               <div className="text-center py-16">
@@ -206,7 +219,6 @@ export default function ChatWindow() {
                 {error}
               </div>
             )}
-            <div ref={endRef} />
           </div>
         </main>
 
@@ -243,12 +255,26 @@ export default function ChatWindow() {
               </button>
             </div>
           )}
+          {error && (
+            <div style={{
+              margin: "10px 20px 0",
+              padding: "10px 12px",
+              border: "1px solid var(--error)",
+              borderRadius: "12px",
+              background: "var(--cream)",
+              color: "var(--error)",
+              fontSize: "12px",
+            }}>
+              {error}
+            </div>
+          )}
           {/* Input row */}
           <div className="flex items-center gap-3 px-5" style={{ height: "64px" }}>
             <input type="text" value={input} onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
               placeholder="Ask Astra..." disabled={isLoading}
               className="flex-1"
+              ref={inputRef}
               style={{
                 background: "var(--white)", border: "1.5px solid var(--border)", borderRadius: "12px",
                 padding: "10px 16px", color: "var(--text)", fontSize: "14px",
@@ -263,6 +289,40 @@ export default function ChatWindow() {
               }}>
               ↑
             </button>
+          </div>
+          <div className="flex flex-wrap gap-2 px-5" style={{ padding: "6px 0 14px" }}>
+            {TOOL_OPTIONS.map(option => (
+              <button
+                key={option.tool}
+                type="button"
+                disabled={isLoading}
+                onClick={() => {
+                  setInput(option.prompt);
+                  inputRef.current?.focus();
+                }}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: "999px",
+                  border: "1px solid var(--border)",
+                  background: "var(--card)",
+                  color: "var(--text-secondary)",
+                  fontSize: "11px",
+                  fontFamily: "'Space Mono', monospace",
+                  cursor: isLoading ? "not-allowed" : "pointer",
+                  transition: "border-color 150ms, color 150ms",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = "var(--purple)";
+                  e.currentTarget.style.color = "var(--purple)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = "var(--border)";
+                  e.currentTarget.style.color = "var(--text-secondary)";
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>

@@ -16,8 +16,7 @@ export function useChat() {
   } = useAstro();
 
   const abortControllerRef = useRef<AbortController | null>(null);
-  // Track the index of the currently-streaming assistant message
-  const streamingIndexRef = useRef<number | null>(null);
+  const hasStreamFinishedRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -28,7 +27,7 @@ export function useChat() {
   const stopGeneration = () => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
-    streamingIndexRef.current = null;
+    hasStreamFinishedRef.current = true;
     setIsLoading(false);
   };
 
@@ -48,8 +47,21 @@ export function useChat() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+
+    // If the user's message likely triggers a tool (birth chart / transits / geocode),
+    // insert an optimistic pending tool bubble so the UI shows activity immediately.
+    const likelyToolTrigger = /\b(birth|chart|transit|transits|geocode|timezone|latitude|longitude|place|where|born)\b/i;
+    if (likelyToolTrigger.test(trimmed)) {
+      const pendingTool = {
+        role: "tool" as const,
+        content: "__TOOL_PENDING__",
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, pendingTool]);
+    }
     setIsLoading(true);
     setError(null);
+    hasStreamFinishedRef.current = false;
 
     try {
       await sendMessageStream(
@@ -91,8 +103,16 @@ export function useChat() {
             timestamp: new Date().toISOString(),
           };
           setMessages((prev) => {
+            // If we previously inserted a pending placeholder, replace it with the real tool name.
+            const pendingIdx = prev.findIndex((m) => m.role === "tool" && m.content === "__TOOL_PENDING__");
+            if (pendingIdx !== -1) {
+              const next = [...prev];
+              next[pendingIdx] = toolMsg;
+              return next;
+            }
+
             const lastUserIdx = prev.map((m) => m.role).lastIndexOf("user");
-            
+
             // Search for assistant message strictly in the current turn (after the last user message)
             let idx = -1;
             for (let i = prev.length - 1; i > lastUserIdx; i--) {
@@ -113,10 +133,14 @@ export function useChat() {
           if (payload.chartData) {
             setChartData(payload.chartData);
           }
+          hasStreamFinishedRef.current = true;
           setIsLoading(false);
         },
         controller.signal
       );
+      if (!hasStreamFinishedRef.current) {
+        setIsLoading(false);
+      }
     } catch (err: unknown) {
       // AbortError is expected when user stops generation
       if (err instanceof Error && (err.name === "AbortError" || err.name === "CanceledError")) {
@@ -125,6 +149,14 @@ export function useChat() {
       }
       const message = err instanceof Error ? err.message : "Unable to send message";
       setError(message);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant" as const,
+          content: "I hit a connection issue while sending that. Please try again in a moment.",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
       setIsLoading(false);
     }
   };

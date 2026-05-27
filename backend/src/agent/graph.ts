@@ -17,17 +17,24 @@ async function toolNode(state: AgentState): Promise<Partial<AgentState>> {
   const { currentTool, birthDetails } = state;
 
   if (!currentTool || !birthDetails) {
-    return { toolOutput: null };
+    return { toolOutput: null, resolvedLocation: state.resolvedLocation ?? null };
   }
 
   try {
     let toolOutput: any = null;
     let chartData: ChartData | null = state.chartData ?? null;
+    let resolvedLocation = state.resolvedLocation ?? null;
 
     if (currentTool === "compute_birth_chart") {
       console.log("Geocoding...");
       const geo = await geocodePlace(birthDetails.place);
       console.log("Geo:", geo);
+      resolvedLocation = {
+        ...birthDetails,
+        lat: geo.lat,
+        lng: geo.lng,
+        timezone: geo.timezone,
+      };
       const enriched = { ...birthDetails, ...geo };
       console.log("Computing chart...");
       toolOutput = await computeBirthChart(enriched);
@@ -37,9 +44,23 @@ async function toolNode(state: AgentState): Promise<Partial<AgentState>> {
 
     if (currentTool === "get_daily_transits") {
       const geo = await geocodePlace(birthDetails.place);
+      resolvedLocation = {
+        ...birthDetails,
+        lat: geo.lat,
+        lng: geo.lng,
+        timezone: geo.timezone,
+      };
       const enriched = { ...birthDetails, ...geo };
       // Reuse existing natal chart data instead of recomputing it
-      toolOutput = await getDailyTransits(enriched, undefined, chartData);
+      const natalChart = chartData
+        ? {
+            planets: chartData.planets,
+            ascendant: chartData.ascendant,
+            houses: chartData.houses ?? [],
+            rawData: chartData.rawData,
+          }
+        : null;
+      toolOutput = await getDailyTransits(enriched, undefined, natalChart);
     }
 
     if (currentTool === "knowledge_lookup") {
@@ -47,7 +68,7 @@ async function toolNode(state: AgentState): Promise<Partial<AgentState>> {
       toolOutput = knowledgeLookup(lastMessage?.content ?? "");
     }
 
-    return { toolOutput, chartData, currentTool: null };
+    return { toolOutput, chartData, resolvedLocation, currentTool: null };
   } catch (err: any) {
     return { error: err.message, toolOutput: null, chartData: null };
   }
@@ -122,7 +143,7 @@ function ensureAstrologyRedirect(text: string): string {
 }
 
 async function llmNode(state: AgentState): Promise<Partial<AgentState>> {
-  const { messages, toolOutput, birthDetails, error, chartData } = state;
+  const { messages, toolOutput, birthDetails, resolvedLocation, error, chartData } = state;
 
   // Build ephemeris context: prefer fresh toolOutput from this turn,
   // but always fall back to persisted chartData from the DB.
@@ -131,6 +152,12 @@ async function llmNode(state: AgentState): Promise<Partial<AgentState>> {
     : chartData
       ? `Natal chart data (from prior computation): ${JSON.stringify(chartData)}`
       : "No astronomical data available yet.";
+
+  const locationContext = resolvedLocation
+    ? `Resolved location: place=${resolvedLocation.place}, lat=${resolvedLocation.lat}, lng=${resolvedLocation.lng}, timezone=${resolvedLocation.timezone}`
+    : birthDetails
+      ? `Birth place provided: ${birthDetails.place}. Coordinates/timezone have not yet been resolved.`
+      : "No birth location provided yet.";
 
   const systemPrompt = `You are Astra, a calm and insightful astrology companion.
 
@@ -147,6 +174,7 @@ RULES:
 
 CONTEXT:
 ${birthDetails ? `Birth details: date=${birthDetails.date}, time=${birthDetails.time}, place=${birthDetails.place}` : "No birth details provided yet."}
+${locationContext}
 ${ephemerisContext}
 ${error ? `A tool error occurred: ${error}. Acknowledge gracefully.` : ""}
 
@@ -208,6 +236,7 @@ Respond conversationally. Ground every interpretation in the data above.`;
     ],
     toolOutput: null,
     chartData: chartData ?? null,
+    resolvedLocation: resolvedLocation ?? null,
     error: null,
   };
 }
@@ -270,12 +299,19 @@ export async function runAgentStream(
 
   // Step 4: Stream LLM
   const { messages, toolOutput, birthDetails, error, chartData } = afterTool;
+  const { resolvedLocation } = afterTool;
 
   const ephemerisContext = toolOutput
     ? `Astronomical data from ephemeris (this turn): ${JSON.stringify(toolOutput)}`
     : chartData
       ? `Natal chart data (from prior computation): ${JSON.stringify(chartData)}`
       : "No astronomical data available yet.";
+
+  const locationContext = resolvedLocation
+    ? `Resolved location: place=${resolvedLocation.place}, lat=${resolvedLocation.lat}, lng=${resolvedLocation.lng}, timezone=${resolvedLocation.timezone}`
+    : birthDetails
+      ? `Birth place provided: ${birthDetails.place}. Coordinates/timezone have not yet been resolved.`
+      : "No birth location provided yet.";
 
   const systemPrompt = `You are Astra, a calm and insightful astrology companion.
 
@@ -292,6 +328,7 @@ RULES:
 
 CONTEXT:
 ${birthDetails ? `Birth details: date=${birthDetails.date}, time=${birthDetails.time}, place=${birthDetails.place}` : "No birth details provided yet."}
+${locationContext}
 ${ephemerisContext}
 ${error ? `A tool error occurred: ${error}. Acknowledge gracefully.` : ""}
 
@@ -373,6 +410,7 @@ Respond conversationally. Ground every interpretation in the data above.`;
     ],
     toolOutput: null,
     chartData: chartData ?? null,
+    resolvedLocation: resolvedLocation ?? null,
     error: null,
   };
 }

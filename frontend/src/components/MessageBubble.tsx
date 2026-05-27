@@ -63,10 +63,17 @@ function renderTable(tableLines: string[]): React.ReactNode {
     <div style={{ overflowX: "auto", margin: "8px 0" }}>
       <table style={{
         width: "100%",
+        minWidth: "100%",
+        tableLayout: "fixed",
         borderCollapse: "collapse",
         fontSize: "13px",
         fontFamily: "'Space Mono', monospace",
       }}>
+        <colgroup>
+          {headerCells.map((_, i) => (
+            <col key={`col-${i}`} style={{ width: `${100 / headerCells.length}%` }} />
+          ))}
+        </colgroup>
         <thead>
           <tr>
             {headerCells.map((cell, i) => (
@@ -93,7 +100,9 @@ function renderTable(tableLines: string[]): React.ReactNode {
                 <td key={ci} style={{
                   padding: "7px 12px",
                   color: ci === 0 ? "var(--text)" : "var(--text-secondary)",
-                  whiteSpace: "nowrap",
+                  whiteSpace: "normal",
+                  wordBreak: "break-word",
+                  verticalAlign: "top",
                 }}>
                   {renderInline(cell)}
                 </td>
@@ -263,37 +272,114 @@ export default function MessageBubble({ message, isLatestAssistant, showCursor }
 
   // ── Tool activity card ──
   if (isTool) {
-    const TOOL_LABELS: Record<string, string> = {
-      compute_birth_chart: "Computing birth chart…",
-      get_daily_transits: "Fetching today's transits…",
-      knowledge_lookup: "Looking up astrology knowledge…",
+    const TOOL_META: Record<string, { label: string; accent: string; icon: string; description: string }> = {
+      compute_birth_chart: {
+        label: "Computing birth chart…",
+        accent: "#D4A021",
+        icon: "☉",
+        description: "Astra is using compute_birth_chart to keep the reading grounded in real data.",
+      },
+      get_daily_transits: {
+        label: "Fetching today's transits…",
+        accent: "#5B9EA6",
+        icon: "♃",
+        description: "Astra is using get_daily_transits to check the current sky for today.",
+      },
+      geocode_place: {
+        label: "Resolving birth location…",
+        accent: "#7C5CBA",
+        icon: "⌖",
+        description: "Astra is using geocode_place to resolve coordinates and time-zone details.",
+      },
+      knowledge_lookup: {
+        label: "Looking up astrology knowledge…",
+        accent: "#C47A9E",
+        icon: "✦",
+        description: "Astra is using knowledge_lookup to ground the interpretation in reference notes.",
+      },
     };
-    const label = TOOL_LABELS[message.content] ?? `Running ${message.content}…`;
+    const rawToolName = message.content;
+    const meta =
+      rawToolName === "__TOOL_PENDING__"
+        ? {
+            label: "Preparing tool call…",
+            accent: "#8B7EB8",
+            icon: "⟳",
+            description: "Astra is preparing to run a tool. This may be computing a chart or resolving your location.",
+          }
+        : TOOL_META[rawToolName] ?? {
+            label: `Running ${message.content}…`,
+            accent: "#8B7EB8",
+            icon: "⚙",
+            description: `Astra is using ${rawToolName} to keep the reading grounded in real data.`,
+          };
 
     return (
       <div className="flex justify-start">
-        <div style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "10px",
-          padding: "8px 14px",
-          borderRadius: "10px",
-          background: "rgba(139, 126, 184, 0.1)",
-          border: "1px solid var(--purple-border)",
-          fontSize: "12px",
-          color: "var(--purple)",
-          fontFamily: "'Space Mono', monospace",
-          letterSpacing: "0.04em",
-        }}>
-          <span style={{
-            width: "8px",
-            height: "8px",
-            borderRadius: "50%",
-            background: "var(--purple)",
-            display: "inline-block",
-            animation: "pulse 1.2s ease-in-out infinite",
-          }} />
-          ⚙ {label}
+        <div style={{ maxWidth: "82%" }}>
+          <div style={{
+            fontSize: "10px",
+            color: "var(--gold)",
+            letterSpacing: "0.2em",
+            fontWeight: 600,
+            marginBottom: "6px",
+          }}>
+            ✦ ASTRA
+          </div>
+          <div style={{
+            borderLeft: "2px solid var(--purple-border)",
+            paddingLeft: "16px",
+            color: "var(--text-secondary)",
+            fontSize: "14px",
+            lineHeight: "1.75",
+          }}>
+            <div style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "10px",
+              padding: "9px 14px",
+              borderRadius: "999px",
+              background: `${meta.accent}14`,
+              border: `1px solid ${meta.accent}40`,
+              fontSize: "12px",
+              color: meta.accent,
+              fontFamily: "'Space Mono', monospace",
+              letterSpacing: "0.04em",
+              marginBottom: "8px",
+              boxShadow: `0 0 0 1px ${meta.accent}08 inset`,
+            }}>
+              <span style={{
+                width: "22px",
+                height: "22px",
+                borderRadius: "50%",
+                background: `${meta.accent}20`,
+                border: `1px solid ${meta.accent}40`,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                animation: "pulse 1.2s ease-in-out infinite",
+                flexShrink: 0,
+              }} />
+              <span style={{
+                position: "absolute",
+                width: "22px",
+                height: "22px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "12px",
+                lineHeight: 1,
+              }}>
+                {meta.icon}
+              </span>
+              <span>TOOL CALL</span>
+              <span style={{ opacity: 0.9 }}>•</span>
+              <span>{meta.label}</span>
+            </div>
+            <div style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
+              {meta.description} <strong style={{ color: "var(--text)" }}>{rawToolName}</strong>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -319,7 +405,7 @@ export default function MessageBubble({ message, isLatestAssistant, showCursor }
   }
 
   return (
-    <div className="flex justify-start">
+    <div className="flex justify-start" data-latest-assistant={isLatestAssistant ? "true" : "false"}>
       <div style={{ maxWidth: "82%" }}>
         <div style={{
           fontSize: "10px",
