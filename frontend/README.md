@@ -7,23 +7,44 @@
 ## Screenshots
 
 ### Birth Details Form
-![Birth Details Form](./docs/screenshots/birth_form.png)
+![Birth Details Form](./docs/screenshot-birth-form.png)
 
 The entry point. Floating zodiac glyphs (♈ … ♓) orbit a centred card. Three validated fields — Date of Birth, Birth Time, and Birth Location — must all pass before the chart is computed. On submit the user is routed to the Cosmic Reveal.
 
 ---
 
 ### Cosmic Reveal
-![Cosmic Reveal](./docs/screenshots/cosmic_reveal.png)
+![Cosmic Reveal](./docs/screenshot-cosmic-reveal.png)
 
 A full-screen interstitial that fires `computeBirthChart()` against the backend ephemeris and renders the result as an animated planet grid. Each card shows the planet's glyph, sign, and degree. An element breakdown bar (Fire / Earth / Air / Water counts) sits below. "Enter Your Reading →" routes to the chat.
 
 ---
 
 ### Chat Interface — Empty State
-![Chat empty state](./docs/screenshots/chat_empty.png)
+![Chat empty state](./docs/screenshot-chat-empty.png)
 
 The main view. The left sidebar lists every planet with its sign and degree, live-highlighted whenever Astra mentions that planet in a response. The right panel is the message stream. Four quick-action chips at the bottom surface the four agent tools without the user needing to type a command.
+
+---
+
+### Chat Interface — Main View
+![Chat main view](./docs/screenshot-chat.png)
+
+The full chat UI showing sidebar, message stream, and input bar.
+
+---
+
+### Tool Call Badge
+![Tool call badge](./docs/screenshot-tool-call.png)
+
+Tool activity appears as a pill (TOOL CALL) before the assistant reply streams.
+
+---
+
+### Streaming Chat Response
+![Chat streaming response](./docs/screenshot-chat-response.png)
+
+An example assistant reply streaming token-by-token with a stable table layout for natal data.
 
 ---
 
