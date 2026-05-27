@@ -30,6 +30,15 @@
              tool activity shown live as the agent reasons
 ```
 
+## Screenshots
+
+- **Birth details form:** ![Birth form](frontend/docs/screenshot-birth-form.png)
+- **Validation errors shown inline:** ![Validation errors](frontend/docs/screenshot-birth-form-validation.png)
+- **Cosmic reveal (planetary grid):** ![Cosmic reveal](frontend/docs/screenshot-cosmic-reveal.png)
+- **Chat UI (tool call badge):** ![Tool call](frontend/docs/screenshot-tool-call.png)
+- **Streaming chat response:** ![Chat streaming response](frontend/docs/screenshot-chat-response.png)
+
+
 ---
 
 ## Architecture
