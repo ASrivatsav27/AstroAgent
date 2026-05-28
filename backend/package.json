@@ -6,8 +6,12 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
     "eval": "tsx scripts/run_eval.ts",
-    "eval:verbose": "tsx scripts/run_eval.ts --verbose"
+    "eval:verbose": "tsx scripts/run_eval.ts --verbose",
+    "inspect:db": "tsx scripts/inspect_db.ts",
+    "test:tools": "tsx scripts/test_tools.ts"
   },
   "keywords": [],
   "author": "",
