@@ -4,7 +4,7 @@ services:
     name: astroagent-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -18,7 +18,7 @@ services:
       - key: MONGO_URI
         sync: false
       - key: FRONTEND_URL
-        sync: false
+        value: https://astroagent-frontend.onrender.com
 
   # ── Frontend ───────────────────────────────────────────────────────────────
   - type: web
@@ -29,7 +29,7 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_BASE
-        sync: false
+        value: https://astroagent-backend.onrender.com/api
     routes:
       - type: rewrite
         source: /*
