@@ -9,7 +9,7 @@
 - [Demo Flow](#demo-flow)
 - [Architecture](#architecture)
 - [Agent Graph](#agent-graph)
-- [LangGraph Substitute — Justification](#langgraph-substitute--justification)
+- [LangGraph Substitute: Justification](#langgraph-substitute-justification)
 - [Tools](#tools)
 - [Streaming](#streaming)
 - [Setup](#setup)
@@ -32,12 +32,9 @@
 
 ## Screenshots
 
-- **Birth details form:** ![Birth form](frontend/docs/screenshot-birth-form.png)
-- **Validation errors shown inline:** ![Validation errors](frontend/docs/screenshot-birth-form-validation.png)
-- **Cosmic reveal (planetary grid):** ![Cosmic reveal](frontend/docs/screenshot-cosmic-reveal.png)
-- **Chat UI (tool call badge):** ![Tool call](frontend/docs/screenshot-tool-call.png)
-- **Streaming chat response:** ![Chat streaming response](frontend/docs/screenshot-chat-response.png)
+**Chat interface — empty state:**
 
+![Chat UI](frontend/docs/screenshots/chat_empty.png)
 
 ---
 
@@ -120,7 +117,7 @@ RouterNode → intent
 
 ---
 
-## LangGraph Substitute — Justification
+## LangGraph Substitute: Justification
 
 This project implements the agent graph as a **custom TypeScript state machine** rather than using `@langchain/langgraph`. Here's why, and the direct mapping to LangGraph concepts:
 
@@ -245,7 +242,7 @@ npm run eval:verbose                # same + full LLM replies printed
 npm run eval -- --id TC05           # run a single case by ID
 ```
 
-### Golden Set — `evals/golden_set_v1.jsonl`
+### Golden Set — [backend/evals/golden\_set\_v1.jsonl](./backend/evals/golden_set_v1.jsonl)
 
 25 versioned cases covering:
 
@@ -287,7 +284,7 @@ npm run eval -- --id TC05           # run a single case by ID
 ══════════════════════════════════════════════════════════════════════════════
 ```
 
-Results are saved to `evals/results/run_eval_<timestamp>.json` and a history row is appended to `evals/results/history.md` after every run for regression tracking.
+Results are saved to `evals/results/run_eval_<timestamp>.json` and a history row is appended to [`backend/evals/results/history.md`](./backend/evals/results/history.md) after every run for regression tracking.
 
 ### Grading Method (EV02)
 
