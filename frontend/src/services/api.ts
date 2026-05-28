@@ -1,7 +1,9 @@
 import axios from "axios";
 import type { BirthDetails, ChartData, Message } from "../context/AstroContext";
 
-const BASE_URL = "http://localhost:8000/api";
+// In production, set VITE_API_BASE to your deployed backend URL
+// e.g. https://astroagent-backend.onrender.com/api
+const BASE_URL = import.meta.env.VITE_API_BASE ?? "http://localhost:8000/api";
 
 const api = axios.create({ baseURL: BASE_URL });
 
@@ -51,11 +53,6 @@ export type StreamDonePayload = {
   chartData: ChartData | null;
 };
 
-/**
- * Streams the assistant reply from /api/chat/stream (SSE).
- * Calls onToken for each text chunk, onToolActivity when a tool runs,
- * and onDone once the stream finishes.
- */
 export async function sendMessageStream(
   userId: string,
   message: string,
@@ -86,7 +83,7 @@ export async function sendMessageStream(
 
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
-    buffer = lines.pop() ?? ""; // keep incomplete last line
+    buffer = lines.pop() ?? "";
 
     for (const line of lines) {
       if (!line.startsWith("data: ")) continue;
@@ -107,4 +104,3 @@ export async function sendMessageStream(
     }
   }
 }
-

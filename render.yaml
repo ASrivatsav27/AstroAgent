@@ -1,0 +1,36 @@
+services:
+  # ── Backend ────────────────────────────────────────────────────────────────
+  - type: web
+    name: astroagent-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8000
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: MONGO_URI
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+  - type: web
+    name: astroagent-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
